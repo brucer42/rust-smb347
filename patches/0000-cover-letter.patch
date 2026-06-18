@@ -1,0 +1,72 @@
+From 2d2ad4faab0138c15b64c124bfa31709b60686d1 Mon Sep 17 00:00:00 2001
+From: Bruce Robertson <brucer42@gmail.com>
+Date: Wed, 10 Jun 2026 04:26:41 +0000
+Subject: [RFC PATCH 0/3] rust: power_supply class abstraction and SMB347 charger driver
+
+ This series adds a Rust abstraction for the power supply class -- which
+does not currently exist in mainline or rust-next -- together with the
+SMBus helpers needed to drive an I2C charger from Rust, and a Rust port
+of the Summit SMB347 battery charger as the first consumer. 
+
+Motivation
+----------
+Rust drivers for power supply hardware are currently blocked: there is
+no safe Rust interface to the power supply class, and the I2cClient 
+abstraction exposes no register I/O. This series provides a minimal,
+self-contained path from binding an I2C charger to reporting charging
+state through sysfs, entirely in safe Rust, with the unsafe FFI confined
+to the two abstraction layers.
+
+The series is structured abstraction-first:
+
+  1/3  Safe SMBus read/write/update_bits over i2c::I2cClient.
+  2/3  A power_supply Driver trait, a generic get_property trampoline,
+       and an RAII Registration that owns the descriptor lifetime.
+  3/3  A Rust SMB347 charger driver consuming both: it binds over I2C
+       and reports STATUS, ONLINE and CHARGE_TYPE.
+       
+Testing
+-------
+Built and exercised against an emulated SMB347 using i2c-stub: seeding
+the chip's status registers and reading back the corresponding sysfs
+attributes (status, online, charge_type) confirms the full C->Rust->C
+path. No physical hardware or interrupt path has been tested.
+
+Open questions / known limitations (hence RFC)
+----------------------------------------------
+  - get_property recovers the driver's private data via the parent
+    device's drvdata. The current code relies on the observed ordering
+    (callbacks only fire after probe() has set drvdata); the contract
+    should be made explicit.
+  - smbus_update_bits() is not atomic against concurrent callers; a lock
+    will be required before a charger IRQ handler is added (not yet 
+    implemented).
+  - Only get_property and a handful of properties are wired up;
+    set_property, property_is_writeable and the IRQ-driven
+    power_supply_changed() notification are future work.
+    
+Feedback on the abstraction's shape -- especially the descriptor
+lifetime and the drvdata recovery -- would be very welcome.
+
+Based on v7.1-rc6.
+
+Bruce Robertson (3):
+  rust: i2c: add SMBus byte transfer helpers
+  rust: power_supply: add power supply class abstraction
+  power: supply: add Rust SMB347 charger driver
+
+ MAINTAINERS                                 |   1 +
+ drivers/power/supply/Kconfig                |  14 ++
+ drivers/power/supply/Makefile               |   1 +
+ drivers/power/supply/smb347-charger_rust.rs | 179 ++++++++++++++++++++
+ rust/bindings/bindings_helper.h             |   1 +
+ rust/kernel/i2c.rs                          |  42 +++++
+ rust/kernel/lib.rs                          |   1 +
+ rust/kernel/power_supply.rs                 | 133 +++++++++++++++
+ 8 files changed, 372 insertions(+)
+ create mode 100644 drivers/power/supply/smb347-charger_rust.rs
+ create mode 100644 rust/kernel/power_supply.rs
+
+-- 
+2.43.0
+
