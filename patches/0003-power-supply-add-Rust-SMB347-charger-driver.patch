@@ -1,4 +1,4 @@
-From 2d2ad4faab0138c15b64c124bfa31709b60686d1 Mon Sep 17 00:00:00 2001
+From cee3dfa18ec2eb8ea197d82605d65adc884ebcc1 Mon Sep 17 00:00:00 2001
 From: Bruce Robertson <brucer42@gmail.com>
 Date: Wed, 10 Jun 2026 02:57:27 +0000
 Subject: [RFC PATCH 3/3] power: supply: add Rust SMB347 charger driver
@@ -14,15 +14,15 @@ Signed-off-by: Bruce Robertson <brucer42@gmail.com>
 ---
  drivers/power/supply/Kconfig                |  14 ++
  drivers/power/supply/Makefile               |   1 +
- drivers/power/supply/smb347-charger_rust.rs | 179 ++++++++++++++++++++
- 3 files changed, 194 insertions(+)
+ drivers/power/supply/smb347-charger_rust.rs | 180 ++++++++++++++++++++
+ 3 files changed, 195 insertions(+)
  create mode 100644 drivers/power/supply/smb347-charger_rust.rs
 
 diff --git a/drivers/power/supply/Kconfig b/drivers/power/supply/Kconfig
-index 83392ed6a8da..4783b1741ad1 100644
+index f0ede1cecb6a..b6521c86b47c 100644
 --- a/drivers/power/supply/Kconfig
 +++ b/drivers/power/supply/Kconfig
-@@ -865,6 +865,20 @@ config CHARGER_SMB347
+@@ -875,6 +875,20 @@ config CHARGER_SMB347
  	  Say Y to include support for Summit Microelectronics SMB345,
  	  SMB347 or SMB358 Battery Charger.
  
@@ -44,12 +44,12 @@ index 83392ed6a8da..4783b1741ad1 100644
  	tristate "TPS65090 battery charger driver"
  	depends on MFD_TPS65090
 diff --git a/drivers/power/supply/Makefile b/drivers/power/supply/Makefile
-index 7ee839dca7f3..dc6dc12a905b 100644
+index 31fe4a145929..96616fb381a9 100644
 --- a/drivers/power/supply/Makefile
 +++ b/drivers/power/supply/Makefile
-@@ -108,6 +108,7 @@ obj-$(CONFIG_CHARGER_BQ25980)	+= bq25980_charger.o
- obj-$(CONFIG_CHARGER_BQ256XX)	+= bq256xx_charger.o
+@@ -109,6 +109,7 @@ obj-$(CONFIG_CHARGER_BQ256XX)	+= bq256xx_charger.o
  obj-$(CONFIG_CHARGER_RK817)	+= rk817_charger.o
+ obj-$(CONFIG_CHARGER_S2M)	+= s2m-charger.o
  obj-$(CONFIG_CHARGER_SMB347)	+= smb347-charger.o
 +obj-$(CONFIG_CHARGER_SMB347_RUST) += smb347-charger_rust.o
  obj-$(CONFIG_CHARGER_TPS65090)	+= tps65090-charger.o
@@ -57,10 +57,10 @@ index 7ee839dca7f3..dc6dc12a905b 100644
  obj-$(CONFIG_AXP288_FUEL_GAUGE) += axp288_fuel_gauge.o
 diff --git a/drivers/power/supply/smb347-charger_rust.rs b/drivers/power/supply/smb347-charger_rust.rs
 new file mode 100644
-index 000000000000..28a4806b5dc8
+index 000000000000..c8286956a7a8
 --- /dev/null
 +++ b/drivers/power/supply/smb347-charger_rust.rs
-@@ -0,0 +1,179 @@
+@@ -0,0 +1,180 @@
 +// SPDX-License-Identifier: GPL-2.0
 +
 +//! Rust SMB347 i2c driver
@@ -145,7 +145,7 @@ index 000000000000..28a4806b5dc8
 +    /// Enable/disable writes to the non-volatile config registers (0x00–0x0e)
 +    /// by toggling CMD_A.ALLOW_WRITE. Other CMD_A bits are preserved.
 +    #[expect(dead_code)] // TODO: remove once a config-write path calls this (Phase 3)
-+    fn set_writable(idev: &i2c::I2cClient<Core>, writable: bool) -> Result {
++    fn set_writable(idev: &i2c::I2cClient<Core<'_>>, writable: bool) -> Result {
 +        let bits = if writable { reg::CMD_A_ALLOW_WRITE } else { 0 };
 +        idev.smbus_update_bits(reg::CMD_A, reg::CMD_A_ALLOW_WRITE, bits)
 +    }
@@ -198,12 +198,13 @@ index 000000000000..28a4806b5dc8
 +
 +impl i2c::Driver for Smb347 {
 +    type IdInfo = u32;
++    type Data<'bound> = Self;
 +
 +    const I2C_ID_TABLE: Option<i2c::IdTable<Self::IdInfo>> = Some(&I2C_TABLE);
 +    const OF_ID_TABLE: Option<of::IdTable<Self::IdInfo>> = Some(&OF_TABLE);
 +
 +    fn probe(
-+        idev: &i2c::I2cClient<Core>,
++        idev: &i2c::I2cClient<Core<'_>>,
 +        info: Option<&Self::IdInfo>,
 +    ) -> impl PinInit<Self, Error> {
 +        let dev = idev.as_ref();
@@ -224,11 +225,11 @@ index 000000000000..28a4806b5dc8
 +        })
 +    }
 +
-+    fn shutdown(idev: &i2c::I2cClient<Core>, _this: Pin<&Self>) {
++    fn shutdown(idev: &i2c::I2cClient<Core<'_>>, _this: Pin<&Self>) {
 +        dev_info!(idev.as_ref(), "Shutdown Rust SMB347 driver.\n");
 +    }
 +
-+    fn unbind(idev: &i2c::I2cClient<Core>, _this: Pin<&Self>) {
++    fn unbind(idev: &i2c::I2cClient<Core<'_>>, _this: Pin<&Self>) {
 +        dev_info!(idev.as_ref(), "Unbind Rust SMB347 driver.\n");
 +    }
 +}

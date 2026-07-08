@@ -72,7 +72,7 @@ unsafe extern "C" fn get_property_trampoline<T: Driver + 'static>(
     // SAFETY: core passes a valid `psy`; we stored the parent device ptr as its drv_data.
     let dev_ptr = unsafe { bindings::power_supply_get_drvdata(psy) }.cast::<bindings::device>();
     // SAFETY: that device is valid while the (devm) supply lives.
-    let dev: &Device<device::CoreInternal> = unsafe { Device::from_raw(dev_ptr) };
+    let dev: &Device<device::CoreInternal<'_>> = unsafe { Device::from_raw(dev_ptr) };
     // SAFETY: callbacks only fire after probe returned, so set_drvdata stored a `T`.
     let data = unsafe { dev.drvdata_borrow::<T>() };
     // SAFETY: core passes a valid `val` for the call.
@@ -122,7 +122,7 @@ pub fn register<T: Driver + 'static>(dev: &Device) -> Result<Registration> {
     let cfg = bindings::power_supply_config {
         drv_data: dev.as_raw().cast::<kernel::ffi::c_void>(),
         ..Default::default()
-    };  
+    };
 
     // SAFETY: `dev` valid; `desc_ptr` points into `desc`, kept alive in the returned
     // `Registration` and freed only after `power_supply_unregister`; `cfg` valid for the call.

@@ -5,7 +5,7 @@ currently exist in mainline or `rust-next` — together with the SMBus helpers
 needed to drive an I²C charger from Rust, and a Rust port of the Summit
 **SMB347** battery charger as the first consumer.
 
-Status: **RFC**, based on **v7.1-rc6**. Not yet submitted upstream.
+Status: **RFC**, based on **`rust-next` (v7.2-rc1)**. Submitted upstream 2026-07-08 — [lore thread](https://lore.kernel.org/rust-for-linux/20260708214738.25008-1-brucer42@gmail.com/).
 
 ## Motivation
 
@@ -21,9 +21,9 @@ in safe Rust, with the `unsafe` FFI confined to the two abstraction layers.
 | - | ----- | ------------ |
 | 1 | `rust: i2c: add SMBus byte transfer helpers` | Safe `smbus_read_byte_data` / `smbus_write_byte_data` / `smbus_update_bits` over `i2c::I2cClient`. `rust/kernel/i2c.rs`, +42. |
 | 2 | `rust: power_supply: add power supply class abstraction` | A safe `Driver` trait, a generic `get_property` `extern "C"` trampoline, and an RAII `Registration` that owns the descriptor lifetime. `rust/kernel/power_supply.rs`, +133 (new file). |
-| 3 | `power: supply: add Rust SMB347 charger driver` | A Rust SMB347 driver consuming both: binds over I²C and reports `STATUS`, `ONLINE`, and `CHARGE_TYPE`. `drivers/power/supply/smb347-charger_rust.rs`, +179 (new file). |
+| 3 | `power: supply: add Rust SMB347 charger driver` | A Rust SMB347 driver consuming both: binds over I²C and reports `STATUS`, `ONLINE`, and `CHARGE_TYPE`. `drivers/power/supply/smb347-charger_rust.rs`, +180 (new file). |
 
-Full diffstat: 8 files changed, 372 insertions(+).
+Full diffstat: 8 files changed, 373 insertions(+).
 
 ## Layout
 
@@ -43,7 +43,7 @@ easy reading. To apply the complete change set (including the edits to
 `MAINTAINERS`, and the `Kconfig` / `Makefile` entries), use the patches:
 
 ```sh
-cd linux            # a v7.1-rc6 tree
+cd linux            # a rust-next / v7.2-rc1 tree
 git am /path/to/patches/000{1,2,3}-*.patch
 ```
 

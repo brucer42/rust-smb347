@@ -82,7 +82,7 @@ impl Smb347 {
     /// Enable/disable writes to the non-volatile config registers (0x00–0x0e)
     /// by toggling CMD_A.ALLOW_WRITE. Other CMD_A bits are preserved.
     #[expect(dead_code)] // TODO: remove once a config-write path calls this (Phase 3)
-    fn set_writable(idev: &i2c::I2cClient<Core>, writable: bool) -> Result {
+    fn set_writable(idev: &i2c::I2cClient<Core<'_>>, writable: bool) -> Result {
         let bits = if writable { reg::CMD_A_ALLOW_WRITE } else { 0 };
         idev.smbus_update_bits(reg::CMD_A, reg::CMD_A_ALLOW_WRITE, bits)
     }
@@ -135,12 +135,13 @@ impl kernel::power_supply::Driver for Smb347 {
 
 impl i2c::Driver for Smb347 {
     type IdInfo = u32;
+    type Data<'bound> = Self;
 
     const I2C_ID_TABLE: Option<i2c::IdTable<Self::IdInfo>> = Some(&I2C_TABLE);
     const OF_ID_TABLE: Option<of::IdTable<Self::IdInfo>> = Some(&OF_TABLE);
 
     fn probe(
-        idev: &i2c::I2cClient<Core>,
+        idev: &i2c::I2cClient<Core<'_>>,
         info: Option<&Self::IdInfo>,
     ) -> impl PinInit<Self, Error> {
         let dev = idev.as_ref();
@@ -161,11 +162,11 @@ impl i2c::Driver for Smb347 {
         })
     }
 
-    fn shutdown(idev: &i2c::I2cClient<Core>, _this: Pin<&Self>) {
+    fn shutdown(idev: &i2c::I2cClient<Core<'_>>, _this: Pin<&Self>) {
         dev_info!(idev.as_ref(), "Shutdown Rust SMB347 driver.\n");
     }
 
-    fn unbind(idev: &i2c::I2cClient<Core>, _this: Pin<&Self>) {
+    fn unbind(idev: &i2c::I2cClient<Core<'_>>, _this: Pin<&Self>) {
         dev_info!(idev.as_ref(), "Unbind Rust SMB347 driver.\n");
     }
 }
