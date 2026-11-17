@@ -7,6 +7,13 @@ needed to drive an I²C charger from Rust, and a Rust port of the Summit
 
 Status: **RFC**, based on **`rust-next` (v7.2-rc1)**. Submitted upstream 2026-07-08 — [lore thread](https://lore.kernel.org/rust-for-linux/20260708214738.25008-1-brucer42@gmail.com/).
 
+**Update 2026-11-17:** rebased onto **v7.3** (`patches-v7.3/`). Each of the
+three commits builds on its own; `checkpatch --strict`, `rustfmtcheck` and a
+`CLIPPY=1` build are clean; the `i2c-stub` test described below passes in a
+v7.3 guest. This is the July RFC plus the change made in review of patch 2
+(`Registration::new`), carried forward. It is not a v2: a v2 will move the
+SMBus access onto the I2C I/O-backend work now in review upstream.
+
 ## Motivation
 
 Rust drivers for power-supply hardware are currently blocked: there is no safe
@@ -35,7 +42,14 @@ patches/                                    # the full RFC series + cover letter
   0001-rust-i2c-add-SMBus-byte-transfer-helpers.patch
   0002-rust-power_supply-add-power-supply-class-abstraction.patch
   0003-power-supply-add-Rust-SMB347-charger-driver.patch
+patches-v7.3/                               # the same series rebased onto v7.3 (2026-11-17)
+  0001-rust-i2c-add-SMBus-byte-transfer-helpers.patch
+  0002-rust-power_supply-add-power-supply-class-abstraction.patch
+  0003-power-supply-add-Rust-SMB347-charger-driver.patch
 ```
+
+`patches/` is the series as sent on 2026-07-08. The two browsable `.rs` files
+are the v7.3 versions.
 
 The two `.rs` files above are the new files from the series, included here for
 easy reading. To apply the complete change set (including the edits to
@@ -45,6 +59,13 @@ easy reading. To apply the complete change set (including the edits to
 ```sh
 cd linux            # a rust-next / v7.2-rc1 tree
 git am /path/to/patches/000{1,2,3}-*.patch
+```
+
+or, on v7.3:
+
+```sh
+cd linux            # git checkout v7.3
+git am /path/to/patches-v7.3/000{1,2,3}-*.patch
 ```
 
 ## Testing

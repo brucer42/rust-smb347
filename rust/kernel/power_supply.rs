@@ -6,7 +6,7 @@
 
 use crate::{
     bindings,
-    device::{self, Device},
+    device::{self, Bound, Device},
     error::*,
     prelude::*,
 };
@@ -90,9 +90,39 @@ pub struct Registration {
     _desc: KBox<bindings::power_supply_desc>,
 }
 
+impl Registration {
+    /// Registers a power supply backed by driver `T` against `dev`.
+    pub fn new<T: Driver + 'static>(dev: &Device<Bound>) -> Result<Self> {
+        let mut desc = KBox::new(bindings::power_supply_desc::default(), GFP_KERNEL)?;
+        desc.name = T::NAME.as_char_ptr();
+        desc.type_ = T::TYPE;
+        desc.properties = T::PROPERTIES.as_ptr();
+        desc.num_properties = T::PROPERTIES.len();
+        desc.get_property = Some(get_property_trampoline::<T>);
+
+        // Stable heap address; moving the KBox into `Registration` keeps this valid
+        // (moving a KBox moves the pointer, not the heap allocation).
+        let desc_ptr: *const bindings::power_supply_desc = &*desc;
+
+        let cfg = bindings::power_supply_config {
+            drv_data: dev.as_raw().cast::<kernel::ffi::c_void>(),
+            ..Default::default()
+        };
+
+        // SAFETY: `dev` is bound, so its raw pointer is valid for this call; `desc_ptr` points
+        // into `desc`, kept alive in the returned `Registration` and freed only after
+        // `power_supply_unregister`; `cfg` is valid for the duration of the call.
+        let psy = unsafe { bindings::power_supply_register(dev.as_raw(), desc_ptr, &cfg) };
+        let psy = from_err_ptr(psy)?;
+
+        Ok(Self { psy, _desc: desc })
+    }
+}
+
 // SAFETY: `Registration` owns the `power_supply` and its descriptor; the raw
 // pointer is only used to unregister on drop. Safe to send/share across threads.
 unsafe impl Send for Registration {}
+
 // SAFETY: as above — psy and descriptor are only accessed on drop, so sharing
 // a `&Registration` across threads is sound.
 unsafe impl Sync for Registration {}
@@ -104,30 +134,4 @@ impl Drop for Registration {
         // `_desc` (dropped immediately after) is then no longer referenced by the core.
         unsafe { bindings::power_supply_unregister(self.psy) };
     }
-}
-
-/// Register a power supply backed by driver `T` against `dev`.
-pub fn register<T: Driver + 'static>(dev: &Device) -> Result<Registration> {
-    let mut desc = KBox::new(bindings::power_supply_desc::default(), GFP_KERNEL)?;
-    desc.name = T::NAME.as_char_ptr();
-    desc.type_ = T::TYPE;
-    desc.properties = T::PROPERTIES.as_ptr();
-    desc.num_properties = T::PROPERTIES.len();
-    desc.get_property = Some(get_property_trampoline::<T>);
-
-    // Stable heap address; moving the KBox into `Registration` keeps this valid
-    // (moving a KBox moves the pointer, not the heap allocation).
-    let desc_ptr: *const bindings::power_supply_desc = &*desc;
-
-    let cfg = bindings::power_supply_config {
-        drv_data: dev.as_raw().cast::<kernel::ffi::c_void>(),
-        ..Default::default()
-    };
-
-    // SAFETY: `dev` valid; `desc_ptr` points into `desc`, kept alive in the returned
-    // `Registration` and freed only after `power_supply_unregister`; `cfg` valid for the call.
-    let psy = unsafe { bindings::power_supply_register(dev.as_raw(), desc_ptr, &cfg) };
-    let psy = from_err_ptr(psy)?;
-
-    Ok(Registration { psy, _desc: desc })
 }

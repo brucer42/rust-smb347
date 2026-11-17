@@ -66,14 +66,12 @@ struct Smb347 {
 
 kernel::i2c_device_table! {
     I2C_TABLE,
-    MODULE_I2C_TABLE,
     <Smb347 as i2c::Driver>::IdInfo,
     [(i2c::DeviceId::new(c"smb347"), 0)]
 }
 
 kernel::of_device_table! {
     OF_TABLE,
-    MODULE_OF_TABLE,
     <Smb347 as i2c::Driver>::IdInfo,
     [(of::DeviceId::new(c"summit,smb347"), 0)]
 }
@@ -154,7 +152,7 @@ impl i2c::Driver for Smb347 {
             dev_info!(dev, "STAT_A = {:#04x}\n", v);
         }
         let client: ARef<i2c::I2cClient> = idev.into();
-        let registration = kernel::power_supply::register::<Smb347>(dev)?;
+        let registration = kernel::power_supply::Registration::new::<Smb347>(dev)?;
         dev_info!(dev, "registered power_supply\n");
         Ok(Self {
             _registration: registration,
